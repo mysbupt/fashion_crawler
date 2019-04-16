@@ -43,7 +43,7 @@ def create_connection():
 def parse_one_page(html_doc):
     res = {}
 
-    soup = BeautifulSoup(html_doc)
+    soup = BeautifulSoup(html_doc, "lxml")
 
     try:
         like_comments = soup.find("meta", {"name": "description"})["content"].split("-")[0].strip()

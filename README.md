@@ -2,7 +2,7 @@
 This is a project for crawling fashion images and associate information from online resources.
 
 ### Requirements
-1. python3
+1. python2.7
 2. BeautifulSoup
 3. Selenium
 4. mysql

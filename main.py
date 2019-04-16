@@ -15,7 +15,8 @@ import hashlib
 import urllib
 import requests
 
-from bs4 import BeautifulSoup
+import sys
+sys.path.insert(0, "./lib")
 from parse_insta_detail_page import parse_one_page
 from align_body_face_bbox import align_body_face
 
@@ -306,11 +307,16 @@ def main():
                         m = hashlib.md5()
                         m.update(result["location_url"].encode('utf-8'))
                         loc_url_md5 = m.hexdigest()
+                        loc_info_valid = False
                         if if_loc_in_redis(loc_url_md5) == True:
-                            loc_info = json.loads(get_loc_info(loc_url_md5))
-                            for k, v in loc_info.items():
-                                result[k] = v
-                        else:
+                            try:
+                                loc_info = json.loads(get_loc_info(loc_url_md5))
+                                for k, v in loc_info.items():
+                                    result[k] = v
+                                loc_info_valid = True
+                            except:
+                                pass    
+                        if not loc_info_valid:
                             try:
                                 print "location_url: ", result["location_url"]
                                 location_driver.get('https://www.instagram.com' + result['location_url'])
@@ -362,8 +368,6 @@ def main():
             #    print "the outer most layer except, please check"
             #    exit()
                             
-
-
 
 if __name__ == '__main__':
     main()

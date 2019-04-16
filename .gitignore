@@ -31,3 +31,9 @@
 *.log
 .sass-cache
 *.txt
+
+# data file
+data*
+data/*
+*.txt
+*.json
