@@ -33,6 +33,7 @@ FACE_DETECT_API = config["API"]["FACE_DETECT_API"]
 
 r = redis.StrictRedis(host=config["redis"]["host"], port=config["redis"]["port"], db=config["redis"]["db"])
 
+
 def get_cmd():
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--tag_name", help="the tag to crawl")
