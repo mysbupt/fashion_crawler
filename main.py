@@ -81,9 +81,10 @@ def get_loc_info(loc_url_md5):
 def add_loc_info_to_redis(loc_url_md5, loc_info):
     global r
     a = r.hset("map_loc_info", loc_url_md5, loc_info)
-    if not a:
-        print "add loc info fail"
-        exit()
+    # if the key already exits and update successfully, will return 0. So, here return either 1 or 0 is okay.
+    #if not a:
+    #    print "add loc info fail"
+    #    exit()
 
 
 def upload_image(img_url_md5, img_data):
