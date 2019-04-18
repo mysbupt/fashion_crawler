@@ -53,7 +53,7 @@ def add_img_to_redis(img_url_md5, img_url):
     global r
     a = r.hset("map_img_url_md5", img_url_md5, img_url)
     if not a:
-        print "add img fail"
+        print("add img fail")
 
 
 def if_detail_html_in_redis(html_url_md5):
@@ -65,7 +65,7 @@ def add_detail_html_to_redis(detail_url_md5, detail_url):
     global r
     a = r.hset("map_detail_url_md5", detail_url_md5, detail_url)
     if not a:
-        print "add html fail"
+        print("add html fail")
 
 
 def if_loc_in_redis(loc_url_md5):
@@ -149,7 +149,7 @@ def main():
 
     output = open("./data/%s.txt" %(tag_name), "a")
     while True:
-        print "\n\n\n tag_name %s, cnt_total: %d, cnt_saved_img: %d, cnt_saved_new_img: %d, cnt_saved_html: %d, cnt_saved_new_html: %d, cnt_has_loc: %d, cnt_got_new_loc: %d" %(tag_name, cnt_total, cnt_saved_img, cnt_saved_new_img, cnt_saved_html, cnt_saved_new_html, cnt_has_loc, cnt_got_new_loc)
+        print("\n\n\n tag_name %s, cnt_total: %d, cnt_saved_img: %d, cnt_saved_new_img: %d, cnt_saved_html: %d, cnt_saved_new_html: %d, cnt_has_loc: %d, cnt_got_new_loc: %d" %(tag_name, cnt_total, cnt_saved_img, cnt_saved_new_img, cnt_saved_html, cnt_saved_new_html, cnt_has_loc, cnt_got_new_loc))
 
         browse_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         time.sleep(random.randint(2,4))
@@ -166,7 +166,7 @@ def main():
 
         # parse the html and get all the images
         imgs = browse_driver.find_elements_by_xpath('//div/div/a/div/div/img')
-        print "\n\n\n\ start a new scroll \n\n\n", len(imgs)
+        print("\n\n\n\ start a new scroll \n\n\n", len(imgs))
         for num, img in enumerate(imgs):
             #try:
             cnt_total += 1
@@ -176,7 +176,7 @@ def main():
             result['alt'] = img.get_attribute('alt')
             result['img_src'] = img.get_attribute('src')
             result['detail_link'] = img.find_element_by_xpath('./ancestor::a').get_attribute('href')
-            print "original detail link is: ", result['detail_link']
+            print("original detail link is: ", result['detail_link'])
 
              
             m = hashlib.md5()
@@ -209,7 +209,7 @@ def main():
                         continue
 
                     # here call the person detection API
-                    print "call person detection API"
+                    print("call person detection API")
                     person_result = requests.post(PERSON_DETECT_API, files={'image': (img_url_md5, open(tmp_image).read())}).json()
                     result["person_result"] = person_result
                     person_boxes = []
@@ -230,7 +230,7 @@ def main():
                         result["num_of_person"] = len(person_boxes)
 
                     # here call the face detection API
-                    print "call face detection API"
+                    print("call face detection API")
                     face_result = requests.post(FACE_DETECT_API, files={'image': (img_url_md5, open(tmp_image).read())}).json()
                     result["face_result"] = face_result
                     face_boxes = []
@@ -276,7 +276,7 @@ def main():
                     add_detail_html_to_redis(detail_url_md5, result['detail_link'])
                     cnt_saved_html += 1 
                     try:
-                        print "download html page: ", result['detail_link']
+                        print("download html page: ", result['detail_link'])
                         detail_driver.get(result['detail_link'])
                         page_source = detail_driver.page_source
                     except:
@@ -287,7 +287,7 @@ def main():
                         else:
                             detail_driver = webdriver.Chrome()
                         detail_driver.set_page_load_timeout(10)
-                        print "detail_driver error and restart"
+                        print("detail_driver error and restart")
                         continue
 
                     # upload the html page
@@ -319,12 +319,12 @@ def main():
                                 pass    
                         if not loc_info_valid:
                             try:
-                                print "location_url: ", result["location_url"]
+                                print("location_url: ", result["location_url"])
                                 location_driver.get('https://www.instagram.com' + result['location_url'])
                                 page_source = location_driver.page_source
                             except:
                                 #pass
-                                print "location html download error"
+                                print("location html download error")
  
                             result["latitude"] = ""
                             result["longitude"] = ""

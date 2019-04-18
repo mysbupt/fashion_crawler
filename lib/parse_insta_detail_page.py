@@ -95,7 +95,7 @@ def insert_data_into_mysql(conn, data):
         cur.execute('''INSERT INTO images (id, tag, image_url, source_page, texts, htmlID, publish_time, blogger, likes, src_site, object_detction, location_name, location_url, comments) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''', (data['img_url_md5'], data['tag'], data['img_src'], data['detail_link'], data['alt'], data['detail_link_md5'], data['publish_time'], data['username'], data['likes'], data['src_site'], json.dumps(data['detect_person_res']), data['location_name'], data['location_url'], data['comments']))
 #        conn.commit()
     except:
-        print "insert fai"
+        print("insert fai")
         conn.rollback()
 
 
@@ -115,7 +115,7 @@ def main():
                 try:
                     data = json.loads(line.strip())
                 except:
-                    print outputfile
+                    print(outputfile)
                     exit()
                 if 'detail_link_md5' in data.keys() and data['detail_link_md5'] not in finished_list:
                     finished_list.add(data['detail_link_md5'])
@@ -126,12 +126,12 @@ def main():
         location_num = 0
         for line in open(inputfile):
             cnt += 1
-            print cnt
+            print(cnt)
             data = json.loads(line.strip())
 
             if 'detail_link_md5' in data.keys() and 'detect_person_res' in data.keys() and data['detect_person_res']['T_F'] == True:
                 if data['detail_link_md5'] in finished_list:
-                    print data['detail_link_md5']
+                    print(data['detail_link_md5'])
                     continue
                 else:
                     finished_list.add(data['detail_link_md5'])
