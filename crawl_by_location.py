@@ -24,7 +24,7 @@ import reverse_geocoder as rg
 
 import yaml
 
-config = yaml.load(open("./config.yaml"))
+config = yaml.load(open("./config.yaml"), Loader=yaml.FullLoader)
 
 HTML_SAVE_URL = config["API"]["HTML_SAVE_URL"] 
 IMAGE_SAVE_URL = config["API"]["IMAGE_SAVE_URL"] 
@@ -127,11 +127,14 @@ def get_all_loc_info():
 
 
 def main():
-    get_all_loc_info()
-    exit()
     paras = get_cmd()
     proxy = paras.proxy
     loc_name = paras.loc_name
+
+    loc_info = json.load(open("./city_info.json"))
+    assert loc_name in loc_info
+    loc_info = loc_info[loc_name]
+    url = "https://www.instagram.com" + loc_info["url"]
 
     # chrome for crawling image list and detail page by tagname
     chrome_options = Options()
@@ -149,7 +152,7 @@ def main():
     location_driver.set_page_load_timeout(10)
 
     # get image list page
-    browse_driver.get('https://www.instagram.com/explore/tags/%s/' %(tag_name))
+    browse_driver.get(url)
     time.sleep(2)
     browse_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     time.sleep(2)
@@ -161,12 +164,10 @@ def main():
     cnt_saved_new_img = 0
     cnt_saved_html = 0
     cnt_saved_new_html = 0
-    cnt_has_loc = 0
-    cnt_got_new_loc = 0
 
-    output = open("./data/%s.txt" %(tag_name), "a")
+    output = open("./data/%s.txt" %(loc_name), "a")
     while True:
-        print("\n\n\n tag_name %s, cnt_total: %d, cnt_saved_img: %d, cnt_saved_new_img: %d, cnt_saved_html: %d, cnt_saved_new_html: %d, cnt_has_loc: %d, cnt_got_new_loc: %d" %(tag_name, cnt_total, cnt_saved_img, cnt_saved_new_img, cnt_saved_html, cnt_saved_new_html, cnt_has_loc, cnt_got_new_loc))
+        print("\n\n\n loc_name %s, cnt_total: %d, cnt_saved_img: %d, cnt_saved_new_img: %d, cnt_saved_html: %d, cnt_saved_new_html: %d" %(loc_name, cnt_total, cnt_saved_img, cnt_saved_new_img, cnt_saved_html, cnt_saved_new_html))
 
         browse_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         time.sleep(random.randint(2,4))
@@ -189,7 +190,7 @@ def main():
             cnt_total += 1
             result = {}
             result['src_site'] = 'instagram'
-            result['tag'] = tag_name
+            #result['tag'] = tag_name
             result['alt'] = img.get_attribute('alt')
             result['img_src'] = img.get_attribute('src')
             result['detail_link'] = img.find_element_by_xpath('./ancestor::a').get_attribute('href')
@@ -317,10 +318,16 @@ def main():
                     for k, v in parse_res.items():
                         result[k] = v
 
+                    """
+                    result["latitude"] = loc_info["latitude"]
+                    result["longitude"] = loc_info["longitude"]
+                    result["parse_loc_name"] = loc_name
+                    result["parse_cc"] = loc_info["parse_cc"]
+                    result["parse_admin1"] = loc_info["parse_admin1"]
+                    result["parse_admin2"] = loc_info["parse_admin2"]
+                    """
                     # if has location field
                     if result["location_name"] != '':
-                        cnt_has_loc += 1
-
                         # download the location page
                         m = hashlib.md5()
                         m.update(result["location_url"].encode('utf-8'))
@@ -333,7 +340,7 @@ def main():
                                     result[k] = v
                                 loc_info_valid = True
                             except:
-                                pass    
+                                pass
                         if not loc_info_valid:
                             try:
                                 print("location_url: ", result["location_url"])
@@ -342,7 +349,7 @@ def main():
                             except:
                                 #pass
                                 print("location html download error")
- 
+
                             result["latitude"] = ""
                             result["longitude"] = ""
                             result["parse_loc_name"] = ""
@@ -360,9 +367,9 @@ def main():
 
                             # lookup latitude and longitude to get the info of this location
                             if result["latitude"] != "" and result["longitude"] != "":
-                                parse_res = rg.search((float(result["latitude"]), float(result["longitude"]))) 
+                                parse_res = rg.search((float(result["latitude"]), float(result["longitude"])))
                                 parse_res = parse_res[0]
-                                result["parse_loc_name"] = parse_res["name"] 
+                                result["parse_loc_name"] = parse_res["name"]
                                 result["parse_cc"] = parse_res["cc"]
                                 result["parse_admin1"] = parse_res["admin1"]
                                 result["parse_admin2"] = parse_res["admin2"]
@@ -378,14 +385,10 @@ def main():
                                     "parse_admin1": result["parse_admin1"],
                                     "parse_admin2": result["parse_admin2"]
                                 }
-                                add_loc_info_to_redis(loc_url_md5, inp)
+                                add_loc_info_to_redis(loc_url_md5, json.dumps(inp))
 
             output.write(json.dumps(result).encode("utf-8") + "\n")
 
-            #except:
-            #    print "the outer most layer except, please check"
-            #    exit()
-                            
 
 if __name__ == '__main__':
     main()
