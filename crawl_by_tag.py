@@ -24,7 +24,7 @@ import reverse_geocoder as rg
 
 import yaml
 
-config = yaml.load(open("./config.yaml"), Loader=yaml.FullLoader)
+config = yaml.load(open("./config.yaml"))
 
 HTML_SAVE_URL = config["API"]["HTML_SAVE_URL"] 
 IMAGE_SAVE_URL = config["API"]["IMAGE_SAVE_URL"] 
