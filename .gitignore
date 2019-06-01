@@ -35,5 +35,6 @@
 # data file
 data*
 data/*
+data_users/*
 *.txt
 *.json
