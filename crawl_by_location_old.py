@@ -142,11 +142,14 @@ def main():
     if proxy != "no":
         browse_driver = webdriver.Chrome(chrome_options=chrome_options)
         detail_driver = webdriver.Chrome(chrome_options=chrome_options)
+        location_driver = webdriver.Chrome(chrome_options=chrome_options)
     else:
         browse_driver = webdriver.Chrome()
         detail_driver = webdriver.Chrome()
+        location_driver = webdriver.Chrome()
     browse_driver.set_page_load_timeout(10)
     detail_driver.set_page_load_timeout(10)
+    location_driver.set_page_load_timeout(10)
 
     # get image list page
     browse_driver.get(url)
@@ -319,8 +322,74 @@ def main():
                     for k, v in parse_res.items():
                         result[k] = v
 
-                    for k, v in loc_info.items():
-                        result[k] = v
+                    """
+                    result["latitude"] = loc_info["latitude"]
+                    result["longitude"] = loc_info["longitude"]
+                    result["parse_loc_name"] = loc_name
+                    result["parse_cc"] = loc_info["parse_cc"]
+                    result["parse_admin1"] = loc_info["parse_admin1"]
+                    result["parse_admin2"] = loc_info["parse_admin2"]
+                    """
+                    # if has location field
+                    if result["location_name"] != '':
+                        # download the location page
+                        m = hashlib.md5()
+                        m.update(result["location_url"].encode('utf-8'))
+                        loc_url_md5 = m.hexdigest()
+                        loc_info_valid = False
+                        if if_loc_in_redis(loc_url_md5) == True:
+                            try:
+                                loc_info = json.loads(get_loc_info(loc_url_md5))
+                                for k, v in loc_info.items():
+                                    result[k] = v
+                                loc_info_valid = True
+                            except:
+                                pass
+                        if not loc_info_valid:
+                            try:
+                                print("location_url: ", result["location_url"])
+                                location_driver.get('https://www.instagram.com' + result['location_url'])
+                                page_source = location_driver.page_source
+                            except:
+                                #pass
+                                print("location html download error")
+
+                            result["latitude"] = ""
+                            result["longitude"] = ""
+                            result["parse_loc_name"] = ""
+                            result["parse_cc"] = ""
+                            result["parse_admin1"] = ""
+                            result["parse_admin2"] = ""
+                            # parse location html to get latitude and longitude
+                            for line in page_source.split('\n'):
+                                if result['latitude'] != "" and result['longitude'] != "":
+                                    break
+                                if '<meta property="place:location:' in line:
+                                    key = line.strip().split(":")[2].split('"')[0]
+                                    value = line.strip().split('"')[3]
+                                    result[key] = value
+
+                            # lookup latitude and longitude to get the info of this location
+                            if result["latitude"] != "" and result["longitude"] != "":
+                                parse_res = rg.search((float(result["latitude"]), float(result["longitude"])))
+                                parse_res = parse_res[0]
+                                result["parse_loc_name"] = parse_res["name"]
+                                result["parse_cc"] = parse_res["cc"]
+                                result["parse_admin1"] = parse_res["admin1"]
+                                result["parse_admin2"] = parse_res["admin2"]
+
+                                # insert the location info into redis
+                                inp = {
+                                    "url": result["location_url"],
+                                    "location_name": result["location_name"],
+                                    "longitude": result["longitude"],
+                                    "latitude": result["latitude"],
+                                    "parse_loc_name": result["parse_loc_name"],
+                                    "parse_cc": result["parse_cc"],
+                                    "parse_admin1": result["parse_admin1"],
+                                    "parse_admin2": result["parse_admin2"]
+                                }
+                                add_loc_info_to_redis(loc_url_md5, json.dumps(inp))
 
             output.write(json.dumps(result).encode("utf-8") + "\n")
 
