@@ -191,9 +191,9 @@ def main():
             result['alt'] = ""
             try:
                result['alt'] = img.get_attribute('alt')
+               result['img_src'] = img.get_attribute('src')
             except:
                pass
-            result['img_src'] = img.get_attribute('src')
             result['detail_link'] = img.find_element_by_xpath('./ancestor::a').get_attribute('href')
             print("original detail link is: ", result['detail_link'])
 
