@@ -156,6 +156,7 @@ def main():
     last_height = browse_driver.execute_script("return document.body.scrollHeight")
 
     # scroll to get the image list
+    retry = 0 
     cnt_total = 0
     cnt_saved_img = 0
     cnt_saved_new_img = 0
@@ -172,6 +173,9 @@ def main():
         new_height = browse_driver.execute_script("return document.body.scrollHeight")
         # if the scroll reach the end, sroll up a little to mock the website
         if new_height == last_height:
+            if retry >= 10:
+                break
+            retry += 1
             time.sleep(random.randint(3, 5))
             browse_driver.execute_script("window.scrollTo(0, document.body.scrollHeight - 1200);")
             continue
@@ -198,6 +202,8 @@ def main():
             print("original detail link is: ", result['detail_link'])
 
              
+            if result['img_src'] is None or result['img_src'] == "":
+                continue
             m = hashlib.md5()
             m.update(result['img_src'])
             img_url_md5 = m.hexdigest()
