@@ -170,7 +170,11 @@ def main():
         browse_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         time.sleep(random.randint(2,4))
 
-        new_height = browse_driver.execute_script("return document.body.scrollHeight")
+        try:
+            new_height = browse_driver.execute_script("return document.body.scrollHeight")
+        except:
+            time.sleep(random.randint(2,4))
+            new_height = browse_driver.execute_script("return document.body.scrollHeight")
         # if the scroll reach the end, sroll up a little to mock the website
         if new_height == last_height:
             if retry >= 10:
@@ -305,7 +309,7 @@ def main():
                         detail_driver.get(result['detail_link'])
                         page_source = detail_driver.page_source
                     except:
-                        detail_driver.close()
+                        detail_driver.quit()
                         time.sleep(random.randint(1,3))
                         if proxy != "no":
                             detail_driver = webdriver.Chrome(chrome_options=chrome_options)
