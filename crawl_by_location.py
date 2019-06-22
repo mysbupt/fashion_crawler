@@ -133,6 +133,7 @@ def main():
     loc_name = paras.loc_name
     sleep_secs = paras.sleep
 
+    # the "sleep" option is used when you want to start multiple crawlers at a same time, the OS may be overload, so you can set different sleep time before the start of each script
     if sleep_secs != 0:
         print("sleep %d before start" %(sleep_secs))
         time.sleep(sleep_secs)
