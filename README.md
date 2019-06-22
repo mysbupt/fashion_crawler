@@ -21,3 +21,5 @@ Even though the idea is simple, but it is not easy to restart all the processes 
 
 start: bash start.sh
 stop: bash stop.sh
+
+if you want to set crontab to restart the crawler everyday, run the command `crontab -e`, and refer to crontab.txt. Note that, it is better to start the cralwer in 5 minutes later. 
