@@ -1,3 +1,5 @@
+#!/bin/bash
+
 city_list=("Cape Town" "Hong Kong" "London" "Los Angeles" "Milan" "Moscow" "New York" "Paris" "Rio de Janeiro" "Seoul" "Shanghai" "Singapore" "Sydney" "Tokyo")
 port_list=($(ps -ef | grep qTfnN | grep -v grep | awk '{print $(NF-1)}'))
 port_list+=("no")

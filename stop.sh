@@ -1,3 +1,5 @@
+#!/bin/bash
+
 all_pids=`ps -ef | grep crawl_by_location.py | grep -v grep | awk '{print $2}'`
 
 for pid in $all_pids
