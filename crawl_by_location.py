@@ -39,6 +39,7 @@ def get_cmd():
     parser = argparse.ArgumentParser()
     parser.add_argument("-l", "--loc_name", help="which location to crawl")
     parser.add_argument("-p", "--proxy", help="the socks5 proxy port")
+    parser.add_argument("-s", "--sleep", default=0, type=int, help="how many seconds to sleep before start")
     args = parser.parse_args()
     return args
 
@@ -130,6 +131,11 @@ def main():
     paras = get_cmd()
     proxy = paras.proxy
     loc_name = paras.loc_name
+    sleep_secs = paras.sleep
+
+    if sleep_secs != 0:
+        print("sleep %d before start" %(sleep_secs))
+        time.sleep(sleep_secs)
 
     loc_info = json.load(open("./city_info.json"))
     assert loc_name in loc_info
