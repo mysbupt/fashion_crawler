@@ -1,0 +1,2 @@
+00 11 * * * bash path_to/fashion_crawler/stop.sh 
+05 11 * * * bash path_to/fashion_crawler/start.sh
