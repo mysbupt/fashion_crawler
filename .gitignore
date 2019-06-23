@@ -37,4 +37,4 @@ data*
 data/*
 data_users/*
 *.txt
-*.json
+./all_loc_info_by_admin.json

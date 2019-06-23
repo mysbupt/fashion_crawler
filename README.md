@@ -23,3 +23,5 @@ start: bash start.sh
 stop: bash stop.sh
 
 if you want to set crontab to restart the crawler everyday, run the command `crontab -e`, and refer to crontab.txt. Note that, it is better to start the cralwer in 5 minutes later. 
+After editing the crontab file, kindly check if the cron service is up:
+  sudo service cron status/start/stop

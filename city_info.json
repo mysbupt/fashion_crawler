@@ -1,0 +1,142 @@
+{
+  "Los Angeles": {
+      "parse_cc": "US",
+      "location_name": "Los Angeles, California",
+      "url": "/explore/locations/212999109/los-angeles-california/",
+      "longitude": "-118.243",
+      "latitude": "34.0522",
+      "parse_admin2": "Los Angeles County",
+      "parse_admin1": "California",
+      "parse_loc_name": "Los Angeles"
+  },
+  "London": {
+      "parse_cc": "GB",
+      "location_name": "London, United Kingdom",
+      "url": "/explore/locations/213385402/london-united-kingdom/",
+      "longitude": "-0.12731805236353",
+      "latitude": "51.507114863624",
+      "parse_admin2": "Greater London",
+      "parse_admin1": "England",
+      "parse_loc_name": "London"
+  },
+  "Seoul": {
+      "parse_cc": "KR",
+      "location_name": "Seoul, Korea",
+      "url": "/explore/locations/213094191/seoul-korea/",
+      "longitude": "127.01648",
+      "latitude": "37.51502",
+      "parse_admin2": "",
+      "parse_admin1": "Seoul",
+      "parse_loc_name": "Seoul"
+  }, 
+  "Tokyo": {
+      "parse_cc": "JP",
+      "location_name": "Tokyo, Japan",
+      "url": "/explore/locations/7226110/tokyo-japan/",
+      "longitude": "139.77",
+      "latitude": "35.68",
+      "parse_admin2": "",
+      "parse_admin1": "Tokyo",
+      "parse_loc_name": "Tokyo"
+   },
+  "Singapore": {
+      "parse_cc": "SG",
+      "location_name": "Singapore",
+      "url": "/explore/locations/274029466/singapore/",
+      "longitude": "103.856",
+      "latitude": "1.29306",
+      "parse_admin2": "",
+      "parse_admin1": "",
+      "parse_loc_name": "Singapore"
+  },
+  "Shanghai": {
+      "parse_cc": "CN",
+      "location_name": "Shanghai, China",
+      "url": "/explore/locations/213193384/shanghai-china/",
+      "longitude": "121.5",
+      "latitude": "31.2",
+      "parse_admin2": "",
+      "parse_admin1": "Shanghai Shi",
+      "parse_loc_name": "Luwan"
+  },
+  "Hong Kong": {
+      "parse_cc": "HK",
+      "location_name": "Hong Kong",
+      "url": "/explore/locations/214424288/hong-kong/",
+      "longitude": "114.158",
+      "latitude": "22.2826",
+      "parse_admin2": "",
+      "parse_admin1": "Central and Western",
+      "parse_loc_name": "Central"
+  },
+  "New York": {
+      "parse_cc": "US",
+      "location_name": "New York, New York",
+      "url": "/explore/locations/212988663/new-york-new-york/",
+      "longitude": "-74.0064",
+      "latitude": "40.7142",
+      "parse_admin2": "",
+      "parse_admin1": "New York",
+      "parse_loc_name": "New York City"
+  },
+  "Rio de Janeiro": {
+      "parse_cc": "BR",
+      "location_name": "Rio de Janeiro, Rio de Janeiro",
+      "url": "/explore/locations/213088533/rio-de-janeiro-rio-de-janeiro/",
+      "longitude": "-43.1975",
+      "latitude": "-22.908",
+      "parse_admin2": "Rio De Janeiro",
+      "parse_admin1": "Rio de Janeiro",
+      "parse_loc_name": "Rio de Janeiro"
+  },
+  "Moscow": {
+      "parse_cc": "RU",
+      "location_name": "Moscow, Russia",
+      "url": "/explore/locations/17326249/moscow-russia/",
+      "longitude": "37.6156",
+      "latitude": "55.7522",
+      "parse_admin2": "",
+      "parse_admin1": "Moscow",
+      "parse_loc_name": "Moscow"
+  },
+  "Cape Town": {
+      "parse_cc": "ZA",
+      "location_name": "Cape Town, Western Cape",
+      "url": "/explore/locations/215871574/cape-town-western-cape/",
+      "longitude": "18.42322",
+      "latitude": "-33.92584",
+      "parse_admin2": "City of Cape Town",
+      "parse_admin1": "Western Cape",
+      "parse_loc_name": "Cape Town"
+  },
+  "Sydney": {
+      "parse_cc": "AU",
+      "location_name": "Sydney, Australia",
+      "url": "/explore/locations/213011753/sydney-australia/",
+      "longitude": "151.20797",
+      "latitude": "-33.86751",
+      "parse_admin2": "City of Sydney",
+      "parse_admin1": "New South Wales",
+      "parse_loc_name": "Sydney"
+  },
+  "Paris": {
+      "parse_cc": "FR",
+      "location_name": "Paris, France",
+      "url": "/explore/locations/6889842/paris-france/",
+      "longitude": "2.3508",
+      "latitude": "48.8567",
+      "parse_admin2": "Paris",
+      "parse_admin1": "Ile-de-France",
+      "parse_loc_name": "Paris"
+  },
+  "Milan": {
+      "parse_cc": "IT",
+      "location_name": "Milan, Italy",
+      "url": "/explore/locations/213050058/milan-italy/",
+      "longitude": "9.1897",
+      "latitude": "45.4643",
+      "parse_admin2": "Citta metropolitana di Milano",
+      "parse_admin1": "Lombardy",
+      "parse_loc_name": "Milano"
+  }
+}

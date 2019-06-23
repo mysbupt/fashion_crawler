@@ -1,2 +1,2 @@
 00 11 * * * bash path_to/fashion_crawler/stop.sh 
-05 11 * * * bash path_to/fashion_crawler/start.sh
+05 11 * * * export DISPLAY=:0 && cd path_to/fashion_crawler && bash start.sh > ./log.txt 2>&1
