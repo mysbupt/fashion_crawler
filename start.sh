@@ -16,7 +16,7 @@ fi
 
 start_cmd="gnome-terminal"
 time_sleep=0
-for ((i=1;i<min_num;i++)); do
+for ((i=0;i<min_num;i++)); do
     city=${city_list[$i]}
     port=${port_list[$i]}
     echo -n "start to crawl city $city: "
