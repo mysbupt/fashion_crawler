@@ -23,7 +23,7 @@ for ((i=0;i<min_num;i++)); do
     tmp_cmd="--tab -e 'python crawl_by_location.py -l \"$city\" -p $port -s $time_sleep'"
     echo $tmp_cmd
     start_cmd="$start_cmd $tmp_cmd"
-    time_sleep=$((time_sleep+10))
+    time_sleep=$((time_sleep+20))
 done
 
 echo $start_cmd
