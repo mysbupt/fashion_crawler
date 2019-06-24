@@ -20,6 +20,11 @@ for ((i=0;i<min_num;i++)); do
     city=${city_list[$i]}
     port=${port_list[$i]}
     echo -n "start to crawl city $city: "
+
+    # archive all the downloaded info
+    cat "data/${city}.txt" >> "data/${city}.txt.backup"
+    echo > "data/${city}.txt"
+
     tmp_cmd="--tab -e 'python crawl_by_location.py -l \"$city\" -p $port -s $time_sleep'"
     echo $tmp_cmd
     start_cmd="$start_cmd $tmp_cmd"
