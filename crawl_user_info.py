@@ -62,7 +62,11 @@ def main():
 
         url = "https://www.instagram.com/" + user_name + "/"
 
-        browse_driver.get(url)
+        try:
+            browse_driver.get(url)
+        except:
+            time.sleep(random.randint(3, 5))
+            continue
         time.sleep(2)
         try:
             res = parse_user_page(browse_driver.page_source)
