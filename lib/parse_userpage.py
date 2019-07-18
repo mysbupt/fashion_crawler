@@ -32,6 +32,11 @@ def parse_user_page(html_doc):
     soup = BeautifulSoup(html_doc, "lxml")
 
     try:
+        user_type = soup.find("script", {"type": "application/ld+json"}).text.strip()
+    except:
+        user_type = "fail"
+
+    try:
         desc = soup.find("meta", {"name": "description"})["content"]
     except:
         desc = "fail"
@@ -55,7 +60,8 @@ def parse_user_page(html_doc):
         "desc": desc,
         "fans": fans,
         "follows": follows,
-        "posts": posts
+        "posts": posts,
+        "user_type": user_type
     }
 
     return res 
