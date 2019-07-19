@@ -22,6 +22,7 @@ def get_cmd():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--city", help="which city's users to crawl, city name")
     parser.add_argument("-p", "--proxy", help="the socks5 proxy port")
+    parser.add_argument("-r", "--reverse", type=bool, default=True, help="the socks5 proxy port")
     args = parser.parse_args()
     return args
 
@@ -30,10 +31,11 @@ def main():
     paras = get_cmd()
     proxy = paras.proxy
     city = paras.city
+    reverse = paras.reverse
 
     city_stat = json.load(open("./city_stat.json"))
     user_list = [] 
-    for user_name, post_cnt in sorted(city_stat[city]["user_stat"].items(), key=lambda i: i[1], reverse=True):
+    for user_name, post_cnt in sorted(city_stat[city]["user_stat"].items(), key=lambda i: i[1], reverse=reverse):
         user_list.append(user_name)
 
     res_file = "./data_userinfo/%s_json.txt" %(city)
