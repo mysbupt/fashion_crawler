@@ -39,3 +39,4 @@ data_users/*
 data_backup
 data_backup/*
 *.json
+*backup

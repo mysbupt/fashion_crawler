@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# coding: utf-8
 
 import os
 import cv2
@@ -8,6 +9,7 @@ import random
 import simplejson as json
 import tempfile
 import redis
+import selenium
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import hashlib
@@ -126,6 +128,237 @@ def get_all_loc_info():
     json.dump(results, open("./all_loc_info.json", "w"))
 
 
+def filter_image(img_src, img_url_md5, detail_link):
+    each_result = {}
+    # here start to download and analyze the image
+    tmp_file, tmp_image = tempfile.mkstemp()
+    try:
+        urllib.urlretrieve(img_src, tmp_image)
+        print("download image", img_url_md5, img_src)
+    except:
+        print('download image fail', img_src, detail_link)
+        os.close(tmp_file)
+        os.remove(tmp_image)
+        return None 
+
+    # here call the person detection API
+    print("call person detection API")
+    person_result = requests.post(PERSON_DETECT_API, files={'image': (img_url_md5, open(tmp_image).read())}).json()
+    each_result["person_result"] = person_result
+    person_boxes = []
+    if person_result["T_F"] is not True:
+        os.close(tmp_file)
+        os.remove(tmp_image)
+        return None
+    else:
+        for each in person_result['result']:
+            if each[0] == 'person' and each[1] >= 0.98:
+                tmp_bbox = list(each[2])
+                tmp_bbox.append(each[1])
+                person_boxes.append(tmp_bbox)
+        if len(person_boxes) == 0:
+            os.close(tmp_file)
+            os.remove(tmp_image)
+            return None 
+        each_result["num_of_person"] = len(person_boxes)
+
+    # here call the face detection API
+    print("call face detection API")
+    face_result = requests.post(FACE_DETECT_API, files={'image': (img_url_md5, open(tmp_image).read())}).json()
+    each_result["face_result"] = face_result
+    face_boxes = []
+    if face_result["T_F"] is not True:
+        os.close(tmp_file)
+        os.remove(tmp_image)
+        return None
+    else:
+        for each_face in face_result['result']['boxes']:
+            if each_face[4] >= 0.98:
+                face_boxes.append(each_face)
+        if len(person_boxes) == 0:
+            os.close(tmp_file)
+            os.remove(tmp_image)
+            return None
+        each_result["num_of_face"] = len(face_boxes)
+
+    # here get the height and width of image
+    real_img = cv2.imread(tmp_image)
+    height, width, channels = real_img.shape
+    each_result["height"] = height
+    each_result["width"] = width
+
+    # here to align the bounding box of face and body
+    face_body_align = align_body_face(person_boxes, face_boxes, width, height)
+    each_result["result"] = face_body_align
+    if face_body_align["is_face_in_body"] == False:
+        os.close(tmp_file)
+        os.remove(tmp_image)
+        return None
+    if face_body_align["body_h_percent"] < 0.3 or face_body_align["face_body_h_percent"] > 0.5:
+        os.close(tmp_file)
+        os.remove(tmp_image)
+        return None
+
+    # upload image to cassandra storage
+    upload_image(img_url_md5, open(tmp_image, 'rb').read())
+    os.close(tmp_file)
+    os.remove(tmp_image)
+
+    return each_result
+
+
+def handle_detail_page(detail_driver, location_driver, detail_url_md5, detail_link, page_source_ori=None):
+    detail_res = {}
+
+    # here to download the detail html page
+    if page_source_ori is None:
+        try:
+            print("download html page: ", detail_link)
+            detail_driver.get(detail_link)
+            page_source = detail_driver.page_source
+        except:
+            detail_driver.close()
+            time.sleep(random.randint(1,3))
+            if proxy != "no":
+                detail_driver = webdriver.Chrome(chrome_options=chrome_options)
+            else:
+                detail_driver = webdriver.Chrome()
+            detail_driver.set_page_load_timeout(10)
+            print("detail_driver error and restart")
+            detail_driver.get(detail_link)
+            page_source = detail_driver.page_source
+    else:
+        page_source = page_source_ori
+
+    # upload the html page
+    upload_html(detail_url_md5, page_source.encode('utf-8'))
+    detail_res['detail_link_md5'] = detail_url_md5 
+
+    # parse the html page
+    parse_res = parse_one_page(page_source)
+    for k, v in parse_res.items():
+        detail_res[k] = v
+
+    # if has location field
+    if detail_res["location_name"] != '':
+        # download the location page
+        m = hashlib.md5()
+        m.update(detail_res["location_url"].encode('utf-8'))
+        loc_url_md5 = m.hexdigest()
+        loc_info_valid = False
+        if if_loc_in_redis(loc_url_md5) == True:
+            try:
+                loc_info = json.loads(get_loc_info(loc_url_md5))
+                for k, v in loc_info.items():
+                    result[k] = v
+                loc_info_valid = True
+            except:
+                pass
+        if not loc_info_valid:
+            try:
+                print("location_url: ", detail_res["location_url"])
+                location_driver.get('https://www.instagram.com' + detail_res['location_url'])
+                page_source = location_driver.page_source
+            except:
+                #pass
+                print("location html download error")
+
+            detail_res["latitude"] = ""
+            detail_res["longitude"] = ""
+            detail_res["parse_loc_name"] = ""
+            detail_res["parse_cc"] = ""
+            detail_res["parse_admin1"] = ""
+            detail_res["parse_admin2"] = ""
+            # parse location html to get latitude and longitude
+            for line in page_source.split('\n'):
+                if detail_res['latitude'] != "" and detail_res['longitude'] != "":
+                    break
+                if '<meta property="place:location:' in line:
+                    key = line.strip().split(":")[2].split('"')[0]
+                    value = line.strip().split('"')[3]
+                    detail_res[key] = value
+
+            # lookup latitude and longitude to get the info of this location
+            if detail_res["latitude"] != "" and detail_res["longitude"] != "":
+                parse_res = rg.search((float(detail_res["latitude"]), float(detail_res["longitude"])))
+                parse_res = parse_res[0]
+                detail_res["parse_loc_name"] = parse_res["name"]
+                detail_res["parse_cc"] = parse_res["cc"]
+                detail_res["parse_admin1"] = parse_res["admin1"]
+                detail_res["parse_admin2"] = parse_res["admin2"]
+
+                # insert the location info into redis
+                inp = {
+                    "url": detail_res["location_url"],
+                    "location_name": detail_res["location_name"],
+                    "longitude": detail_res["longitude"],
+                    "latitude": detail_res["latitude"],
+                    "parse_loc_name": detail_res["parse_loc_name"],
+                    "parse_cc": detail_res["parse_cc"],
+                    "parse_admin1": detail_res["parse_admin1"],
+                    "parse_admin2": detail_res["parse_admin2"]
+                }
+                add_loc_info_to_redis(loc_url_md5, json.dumps(inp))
+
+    return detail_res, detail_driver, location_driver
+
+
+def get_multi_images(detail_driver, detail_url_md5, detail_link):
+    multi_img_res = []
+
+    try:
+        print("download html page: ", detail_link)
+        detail_driver.get(detail_link)
+    except:
+        detail_driver.close()
+        time.sleep(random.randint(1,3))
+        if proxy != "no":
+            detail_driver = webdriver.Chrome(chrome_options=chrome_options)
+        else:
+            detail_driver = webdriver.Chrome()
+        detail_driver.set_page_load_timeout(10)
+        print("detail_driver error and restart")
+        detail_driver.get(detail_link)
+
+    # here download all the images in the detail page
+    finish_flag = False
+    while not finish_flag:
+        each_img_res = None
+
+        try:
+            per_img_div = detail_driver.find_element_by_xpath('//div[contains(@class, "tN4sQ zRsZI")]')
+        except Exception as e:
+            print(e)
+            #print("detail_link: %s" %(detail_link))
+            #tmp_output = open("error_page", "w")
+            #tmp_output.write(detail_driver.page_source)
+            #exit()
+        per_img = per_img_div.find_element_by_xpath('//div/div/div/img')
+        per_img_src = per_img.get_attribute('src')
+        per_img_alt = per_img.get_attribute('alt')
+        if not per_img_alt:
+            per_img_alt = ""
+
+        m = hashlib.md5()
+        m.update(per_img_src)
+        per_img_url_md5 = m.hexdigest()
+
+        each_img_res = filter_image(per_img_src, per_img_url_md5, detail_link)
+        if each_img_res is not None:
+            multi_img_res.append(each_img_res)
+
+        try:
+            next_img_button = per_img_div.find_element_by_xpath('./button[@class="  _6CZji"]')
+        except selenium.common.exceptions.NoSuchElementException as e:
+            finish_flag = True
+            break
+
+        next_img_button.click()
+        time.sleep(random.randint(1, 3))
+
+    return multi_img_res, detail_driver, detail_driver.page_source
+    
+
 def main():
     paras = get_cmd()
     proxy = paras.proxy
@@ -164,8 +397,7 @@ def main():
 
     output = open("./data_users/%s.txt" %(user_name), "a")
     while True:
-        print("\n\n\n user_name %s, cnt_total: %d, cnt_saved_img: %d, cnt_saved_new_img: %d, cnt_saved_html: %d, cnt_saved_new_html: %d" %(user_name, cnt_total, cnt_saved_img, cnt_saved_new_img, cnt_saved_html, cnt_saved_new_html))
-
+        #print("\n\n\n user_name %s, cnt_total: %d, cnt_saved_img: %d, cnt_saved_new_img: %d, cnt_saved_html: %d, cnt_saved_new_html: %d" %(user_name, cnt_total, cnt_saved_img, cnt_saved_new_img, cnt_saved_html, cnt_saved_new_html))
         browse_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         time.sleep(random.randint(2,4))
 
@@ -184,7 +416,7 @@ def main():
         print("\n\n\n\ start a new scroll \n\n\n", len(imgs))
         for num, img in enumerate(imgs):
             #try:
-            cnt_total += 1
+            #cnt_total += 1
             result = {}
             result['src_site'] = 'instagram'
             #result['tag'] = tag_name
@@ -197,7 +429,7 @@ def main():
             m = hashlib.md5()
             m.update(result['img_src'])
             img_url_md5 = m.hexdigest()
-            cnt_saved_img += 1
+            #cnt_saved_img += 1
             if if_img_in_redis(img_url_md5) == True:
                 print('image download before')
                 continue
@@ -212,169 +444,38 @@ def main():
                     print('detail page downloaded before')
                     continue
                 else:
-                    # here start to download and analyze the image
-                    tmp_file, tmp_image = tempfile.mkstemp()
-                    try:
-                        urllib.urlretrieve(result['img_src'], tmp_image)
-                        print("download image", img_url_md5, result['img_src'])
-                    except:
-                        print('download image fail', result['img_src'], result['detail_link'])
-                        os.close(tmp_file)
-                        os.remove(tmp_image)
-                        continue
+                    # here first judge the type of this posts: single image, multi images, or video
+                    result['post_type'] = 'single_image'
+                    post_type = img.find_element_by_xpath('./ancestor::a/div[@class="u7YqG"]')
+                    if result['post_type'] is not None:
+                        post_type = post_type.find_element_by_xpath('./span').get_attribute('aria-label')
+                        result['post_type'] = post_type
+                    print("post_type: %s" %(result['post_type']))
 
-                    # here call the person detection API
-                    print("call person detection API")
-                    person_result = requests.post(PERSON_DETECT_API, files={'image': (img_url_md5, open(tmp_image).read())}).json()
-                    result["person_result"] = person_result
-                    person_boxes = []
-                    if person_result["T_F"] is not True:
-                        os.close(tmp_file)
-                        os.remove(tmp_image)
-                        continue
-                    else:
-                        for each in person_result['result']:
-                            if each[0] == 'person' and each[1] >= 0.98:
-                                tmp_bbox = list(each[2])
-                                tmp_bbox.append(each[1])
-                                person_boxes.append(tmp_bbox)
-                        if len(person_boxes) == 0:
-                            os.close(tmp_file)
-                            os.remove(tmp_image)
-                            continue
-                        result["num_of_person"] = len(person_boxes)
-
-                    # here call the face detection API
-                    print("call face detection API")
-                    face_result = requests.post(FACE_DETECT_API, files={'image': (img_url_md5, open(tmp_image).read())}).json()
-                    result["face_result"] = face_result
-                    face_boxes = []
-                    if face_result["T_F"] is not True:
-                        os.close(tmp_file)
-                        os.remove(tmp_image)
-                        continue
-                    else:
-                        for each_face in face_result['result']['boxes']:
-                            if each_face[4] >= 0.98:
-                                face_boxes.append(each_face)
-                        if len(person_boxes) == 0:
-                            os.close(tmp_file)
-                            os.remove(tmp_image)
-                            continue
-                        result["num_of_face"] = len(face_boxes)
-
-                    # here get the height and widht of image
-                    real_img = cv2.imread(tmp_image)
-                    height, width, channels = real_img.shape
-                    result["height"] = height
-                    result["width"] = width
-
-                    # here to align the bounding box of face and body
-                    face_body_align = align_body_face(person_boxes, face_boxes, width, height)
-                    result["result"] = face_body_align
-                    if face_body_align["is_face_in_body"] == False:
-                        os.close(tmp_file)
-                        os.remove(tmp_image)
-                        continue
-                    if face_body_align["body_h_percent"] < 0.3 or face_body_align["face_body_h_percent"] > 0.5:
-                        os.close(tmp_file)
-                        os.remove(tmp_image)
-                        continue
-
-                    # upload image to cassandra storage
-                    upload_image(img_url_md5, open(tmp_image, 'rb').read())
-                    cnt_saved_new_img += 1
-                    os.close(tmp_file)
-                    os.remove(tmp_image)
-
-                    # here to download the detail html page
-                    add_detail_html_to_redis(detail_url_md5, result['detail_link'])
-                    cnt_saved_html += 1 
-                    try:
-                        print("download html page: ", result['detail_link'])
-                        detail_driver.get(result['detail_link'])
-                        page_source = detail_driver.page_source
-                    except:
-                        detail_driver.close()
-                        time.sleep(random.randint(1,3))
-                        if proxy != "no":
-                            detail_driver = webdriver.Chrome(chrome_options=chrome_options)
+                    if result['post_type'] == u'视频':
+                        pass
+                    elif result['post_type'] == 'single_img':
+                        single_img_res = filter_image(result['img_src'], img_url_md5, result['detail_link'])
+                        if single_img_res is not None:
+                            #cnt_saved_new_img += 1
+                            for k, v in single_img_res.items():
+                                result[k] = v
                         else:
-                            detail_driver = webdriver.Chrome()
-                        detail_driver.set_page_load_timeout(10)
-                        print("detail_driver error and restart")
-                        continue
-
-                    # upload the html page
-                    upload_html(detail_url_md5, page_source.encode('utf-8'))
-                    result['detail_link_md5'] = detail_url_md5 
-                    cnt_saved_new_html += 1
-
-                    # parse the html page
-                    parse_res = parse_one_page(page_source)
-                    for k, v in parse_res.items():
-                        result[k] = v
-
-                    # if has location field
-                    if result["location_name"] != '':
-                        # download the location page
-                        m = hashlib.md5()
-                        m.update(result["location_url"].encode('utf-8'))
-                        loc_url_md5 = m.hexdigest()
-                        loc_info_valid = False
-                        if if_loc_in_redis(loc_url_md5) == True:
-                            try:
-                                loc_info = json.loads(get_loc_info(loc_url_md5))
-                                for k, v in loc_info.items():
-                                    result[k] = v
-                                loc_info_valid = True
-                            except:
-                                pass
-                        if not loc_info_valid:
-                            try:
-                                print("location_url: ", result["location_url"])
-                                location_driver.get('https://www.instagram.com' + result['location_url'])
-                                page_source = location_driver.page_source
-                            except:
-                                #pass
-                                print("location html download error")
-
-                            result["latitude"] = ""
-                            result["longitude"] = ""
-                            result["parse_loc_name"] = ""
-                            result["parse_cc"] = ""
-                            result["parse_admin1"] = ""
-                            result["parse_admin2"] = ""
-                            # parse location html to get latitude and longitude
-                            for line in page_source.split('\n'):
-                                if result['latitude'] != "" and result['longitude'] != "":
-                                    break
-                                if '<meta property="place:location:' in line:
-                                    key = line.strip().split(":")[2].split('"')[0]
-                                    value = line.strip().split('"')[3]
-                                    result[key] = value
-
-                            # lookup latitude and longitude to get the info of this location
-                            if result["latitude"] != "" and result["longitude"] != "":
-                                parse_res = rg.search((float(result["latitude"]), float(result["longitude"])))
-                                parse_res = parse_res[0]
-                                result["parse_loc_name"] = parse_res["name"]
-                                result["parse_cc"] = parse_res["cc"]
-                                result["parse_admin1"] = parse_res["admin1"]
-                                result["parse_admin2"] = parse_res["admin2"]
-
-                                # insert the location info into redis
-                                inp = {
-                                    "url": result["location_url"],
-                                    "location_name": result["location_name"],
-                                    "longitude": result["longitude"],
-                                    "latitude": result["latitude"],
-                                    "parse_loc_name": result["parse_loc_name"],
-                                    "parse_cc": result["parse_cc"],
-                                    "parse_admin1": result["parse_admin1"],
-                                    "parse_admin2": result["parse_admin2"]
-                                }
-                                add_loc_info_to_redis(loc_url_md5, json.dumps(inp))
+                            continue
+                        detail_res, detail_driver, location_driver = handle_detail_page(detail_driver, location_driver, detail_url_md5, result['detail_link'])
+                        add_detail_html_to_redis(detail_url_md5, result['detail_link'])
+                        for k, v in detail_res.items():
+                            result[k] = v
+                    elif result['post_type'] == u'轮播':
+                        multi_img_res, detail_driver, page_source = get_multi_images(detail_driver, detail_url_md5, result['detail_link'])
+                        add_detail_html_to_redis(detail_url_md5, result['detail_link'])
+                        if len(multi_img_res) > 0:
+                            result["multi_imgs"] = multi_img_res
+                            detail_res, detail_driver, location_driver = handle_detail_page(detail_driver, location_driver, detail_url_md5, result['detail_link'], page_source_ori=page_source)
+                            for k, v in detail_res.items():
+                                result[k] = v
+                        else:
+                            continue 
 
             output.write(json.dumps(result).encode("utf-8") + "\n")
 
