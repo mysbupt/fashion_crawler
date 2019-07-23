@@ -39,7 +39,11 @@ r = redis.StrictRedis(host=config["redis"]["host"], port=config["redis"]["port"]
 
 def get_cmd():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-u", "--user_name", help="which user to crawl, instagram user id")
+    parser.add_argument("-u", "--user_name", default=None, help="which user to crawl, instagram user id")
+    parser.add_argument("-f", "--file", default=None, help="which file of users to crawl")
+    parser.add_argument("-k", "--key", default=None, help="which key in the specific file to crawl")
+    parser.add_argument("-s", "--start", default=0, type=int, help="which line to start")
+    parser.add_argument("-e", "--end", default=100, type=int, help="which line to end")
     parser.add_argument("-p", "--proxy", help="the socks5 proxy port")
     args = parser.parse_args()
     return args
@@ -130,6 +134,7 @@ def get_all_loc_info():
 
 def filter_image(img_src, img_url_md5, detail_link):
     each_result = {}
+    print("go into filter image")
     # here start to download and analyze the image
     tmp_file, tmp_image = tempfile.mkstemp()
     try:
@@ -364,120 +369,146 @@ def main():
     proxy = paras.proxy
     user_name = paras.user_name
 
-    url = "https://www.instagram.com/" + user_name + "/"
-
-    # chrome for crawling image list and detail page by tagname
-    chrome_options = Options()
-    chrome_options.add_argument("--proxy-server=socks5://localhost" + ":" + proxy)
-    if proxy != "no":
-        browse_driver = webdriver.Chrome(chrome_options=chrome_options)
-        detail_driver = webdriver.Chrome(chrome_options=chrome_options)
-        location_driver = webdriver.Chrome(chrome_options=chrome_options)
+    user_names = []
+    if user_name is not None:
+        user_names = [user_name]
     else:
-        browse_driver = webdriver.Chrome()
-        detail_driver = webdriver.Chrome()
-        location_driver = webdriver.Chrome()
-    browse_driver.set_page_load_timeout(10)
-    detail_driver.set_page_load_timeout(10)
-    location_driver.set_page_load_timeout(10)
+        all_data = json.load(open(paras.file))
+        all_users = all_data[paras.key]
+        start = int(paras.start)
+        end = int(paras.end)
+        user_names = sorted(all_users)[start:end]
 
-    # get image list page
-    browse_driver.get(url)
-    time.sleep(2)
-    browse_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-    time.sleep(2)
-    last_height = browse_driver.execute_script("return document.body.scrollHeight")
+    for i, user_name in enumerate(user_names):
+        url = "https://www.instagram.com/" + user_name + "/"
 
-    # scroll to get the image list
-    cnt_total = 0
-    cnt_saved_img = 0
-    cnt_saved_new_img = 0
-    cnt_saved_html = 0
-    cnt_saved_new_html = 0
-
-    output = open("./data_users/%s.txt" %(user_name), "a")
-    while True:
-        #print("\n\n\n user_name %s, cnt_total: %d, cnt_saved_img: %d, cnt_saved_new_img: %d, cnt_saved_html: %d, cnt_saved_new_html: %d" %(user_name, cnt_total, cnt_saved_img, cnt_saved_new_img, cnt_saved_html, cnt_saved_new_html))
-        browse_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(random.randint(2,4))
-
-        new_height = browse_driver.execute_script("return document.body.scrollHeight")
-        # if the scroll reach the end, sroll up a little to mock the website
-        if new_height == last_height:
-            time.sleep(random.randint(3, 5))
-            browse_driver.execute_script("window.scrollTo(0, document.body.scrollHeight - 1200);")
-            continue
+        # chrome for crawling image list and detail page by tagname
+        chrome_options = Options()
+        chrome_options.add_argument("--proxy-server=socks5://localhost" + ":" + proxy)
+        if proxy != "no":
+            browse_driver = webdriver.Chrome(chrome_options=chrome_options)
+            detail_driver = webdriver.Chrome(chrome_options=chrome_options)
+            location_driver = webdriver.Chrome(chrome_options=chrome_options)
         else:
-            retry = 0 
-        last_height = new_height
+            browse_driver = webdriver.Chrome()
+            detail_driver = webdriver.Chrome()
+            location_driver = webdriver.Chrome()
+        browse_driver.set_page_load_timeout(10)
+        detail_driver.set_page_load_timeout(10)
+        location_driver.set_page_load_timeout(10)
 
-        # parse the html and get all the images
-        imgs = browse_driver.find_elements_by_xpath('//div/div/a/div/div/img')
-        print("\n\n\n\ start a new scroll \n\n\n", len(imgs))
-        for num, img in enumerate(imgs):
-            #try:
-            #cnt_total += 1
-            result = {}
-            result['src_site'] = 'instagram'
-            #result['tag'] = tag_name
-            result['alt'] = img.get_attribute('alt')
-            result['img_src'] = img.get_attribute('src')
-            result['detail_link'] = img.find_element_by_xpath('./ancestor::a').get_attribute('href')
-            print("original detail link is: ", result['detail_link'])
+        # get image list page
+        browse_driver.get(url)
+        time.sleep(2)
+        browse_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(2)
+        last_height = browse_driver.execute_script("return document.body.scrollHeight")
 
-             
-            m = hashlib.md5()
-            m.update(result['img_src'])
-            img_url_md5 = m.hexdigest()
-            #cnt_saved_img += 1
-            if if_img_in_redis(img_url_md5) == True:
-                print('image download before')
+        # scroll to get the image list
+        cnt_total = 0
+        cnt_saved_img = 0
+        cnt_saved_new_img = 0
+        cnt_saved_html = 0
+        cnt_saved_new_html = 0
+
+        finish_flag = False
+        output = open("./data_users/%s.txt" %(user_name), "a")
+        while not finish_flag:
+            print("num: %d, user_name: %s" %(i, user_name))
+            #print("\n\n\n user_name %s, cnt_total: %d, cnt_saved_img: %d, cnt_saved_new_img: %d, cnt_saved_html: %d, cnt_saved_new_html: %d" %(user_name, cnt_total, cnt_saved_img, cnt_saved_new_img, cnt_saved_html, cnt_saved_new_html))
+            browse_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(random.randint(2,4))
+
+            new_height = browse_driver.execute_script("return document.body.scrollHeight")
+            # if the scroll reach the end, sroll up a little to mock the website
+            if new_height == last_height:
+                finish_flag = True
                 continue
-            else:
-                add_img_to_redis(img_url_md5, result['img_src'])
+            #    time.sleep(random.randint(3, 5))
+            #    browse_driver.execute_script("window.scrollTo(0, document.body.scrollHeight - 1200);")
+            #    continue
+            #else:
+            #    retry = 0 
+            last_height = new_height
 
+            # parse the html and get all the images
+            imgs = browse_driver.find_elements_by_xpath('//div/div/a/div/div/img')
+            print("\n\n\n\ start a new scroll \n\n\n", len(imgs))
+            for num, img in enumerate(imgs):
+                #try:
+                #cnt_total += 1
+                result = {}
+                result['src_site'] = 'instagram'
+                #result['tag'] = tag_name
+                result['alt'] = img.get_attribute('alt')
+                result['img_src'] = img.get_attribute('src')
+                result['detail_link'] = img.find_element_by_xpath('./ancestor::a').get_attribute('href')
+                print("original detail link is: ", result['detail_link'])
+                 
                 m = hashlib.md5()
-                m.update(result['detail_link'].encode("utf-8"))
-                detail_url_md5 = m.hexdigest()
-
-                if if_detail_html_in_redis(detail_url_md5) == True:
-                    print('detail page downloaded before')
+                m.update(result['img_src'])
+                img_url_md5 = m.hexdigest()
+                #cnt_saved_img += 1
+                if if_img_in_redis(img_url_md5) == True:
+                    print('image download before')
                     continue
                 else:
-                    # here first judge the type of this posts: single image, multi images, or video
-                    result['post_type'] = 'single_image'
-                    post_type = img.find_element_by_xpath('./ancestor::a/div[@class="u7YqG"]')
-                    if result['post_type'] is not None:
-                        post_type = post_type.find_element_by_xpath('./span').get_attribute('aria-label')
-                        result['post_type'] = post_type
-                    print("post_type: %s" %(result['post_type']))
+                    add_img_to_redis(img_url_md5, result['img_src'])
 
-                    if result['post_type'] == u'视频':
-                        pass
-                    elif result['post_type'] == 'single_img':
-                        single_img_res = filter_image(result['img_src'], img_url_md5, result['detail_link'])
-                        if single_img_res is not None:
-                            #cnt_saved_new_img += 1
-                            for k, v in single_img_res.items():
-                                result[k] = v
-                        else:
-                            continue
-                        detail_res, detail_driver, location_driver = handle_detail_page(detail_driver, location_driver, detail_url_md5, result['detail_link'])
-                        add_detail_html_to_redis(detail_url_md5, result['detail_link'])
-                        for k, v in detail_res.items():
-                            result[k] = v
-                    elif result['post_type'] == u'轮播':
-                        multi_img_res, detail_driver, page_source = get_multi_images(detail_driver, detail_url_md5, result['detail_link'])
-                        add_detail_html_to_redis(detail_url_md5, result['detail_link'])
-                        if len(multi_img_res) > 0:
-                            result["multi_imgs"] = multi_img_res
-                            detail_res, detail_driver, location_driver = handle_detail_page(detail_driver, location_driver, detail_url_md5, result['detail_link'], page_source_ori=page_source)
+                    m = hashlib.md5()
+                    m.update(result['detail_link'].encode("utf-8"))
+                    detail_url_md5 = m.hexdigest()
+
+                    if if_detail_html_in_redis(detail_url_md5) == True:
+                        print('detail page downloaded before')
+                        continue
+                    else:
+                        # here first judge the type of this posts: single image, multi images, or video
+                        result['post_type'] = 'single_img'
+
+                        try:
+                            post_type = img.find_element_by_xpath('./ancestor::a/div[@class="u7YqG"]')
+                            post_type = post_type.find_element_by_xpath('./span').get_attribute('aria-label')
+                            result['post_type'] = post_type
+                        except selenium.common.exceptions.NoSuchElementException as e: 
+                            print("cannot detect post_type")
+                        print("post_type: %s" %(result['post_type']))
+
+                        if result['post_type'] == u'视频':
+                            print("post_type hit video")
+                        elif result['post_type'] == 'single_img':
+                            print("hit post_type with single_img")
+                            single_img_res = filter_image(result['img_src'], img_url_md5, result['detail_link'])
+                            if single_img_res is not None:
+                                #cnt_saved_new_img += 1
+                                print("single_img_res is not None")
+                                for k, v in single_img_res.items():
+                                    result[k] = v
+                            else:
+                                print("single_img_res is None")
+                                continue
+                            detail_res, detail_driver, location_driver = handle_detail_page(detail_driver, location_driver, detail_url_md5, result['detail_link'])
+                            add_detail_html_to_redis(detail_url_md5, result['detail_link'])
                             for k, v in detail_res.items():
                                 result[k] = v
+                        elif result['post_type'] == u'轮播':
+                            multi_img_res, detail_driver, page_source = get_multi_images(detail_driver, detail_url_md5, result['detail_link'])
+                            add_detail_html_to_redis(detail_url_md5, result['detail_link'])
+                            if len(multi_img_res) > 0:
+                                result["multi_imgs"] = multi_img_res
+                                detail_res, detail_driver, location_driver = handle_detail_page(detail_driver, location_driver, detail_url_md5, result['detail_link'], page_source_ori=page_source)
+                                for k, v in detail_res.items():
+                                    result[k] = v
+                            else:
+                                continue 
                         else:
-                            continue 
+                            print("match none of the options")
 
-            output.write(json.dumps(result).encode("utf-8") + "\n")
+                output.write(json.dumps(result).encode("utf-8") + "\n")
+
+        browse_driver.quit()
+        detail_driver.quit()
+        location_driver.quit()
 
 
 if __name__ == '__main__':
