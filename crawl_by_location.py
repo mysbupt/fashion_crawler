@@ -59,7 +59,7 @@ def add_img_to_redis(img_url_md5, img_url):
 
 def if_detail_html_in_redis(html_url_md5):
     global r
-    return r.hexists("map_html_url_md5", html_url_md5)
+    return r.hexists("map_detail_url_md5", html_url_md5)
 
 
 def add_detail_html_to_redis(detail_url_md5, detail_url):
