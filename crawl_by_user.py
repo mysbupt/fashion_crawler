@@ -28,10 +28,10 @@ import yaml
 
 config = yaml.load(open("./config.yaml"))
 
-HTML_SAVE_URL = config["API"]["HTML_SAVE_URL"] 
-IMAGE_SAVE_URL = config["API"]["IMAGE_SAVE_URL"] 
+HTML_SAVE_URL = config["API"]["HTML_SAVE_URL"]
+IMAGE_SAVE_URL = config["API"]["IMAGE_SAVE_URL"]
 
-PERSON_DETECT_API = config["API"]["PERSON_DETECT_API"] 
+PERSON_DETECT_API = config["API"]["PERSON_DETECT_API"]
 FACE_DETECT_API = config["API"]["FACE_DETECT_API"]
 
 r = redis.StrictRedis(host=config["redis"]["host"], port=config["redis"]["port"], db=config["redis"]["db"])
@@ -53,7 +53,7 @@ def if_img_in_redis(img_url_md5):
     global r
     # return True of False
     return r.hexists("map_img_url_md5", img_url_md5)
-    
+
 
 def add_img_to_redis(img_url_md5, img_url):
     global r
@@ -128,7 +128,7 @@ def get_all_loc_info():
             continue
 
         results[res["url"]] = res
-                
+
     json.dump(results, open("./all_loc_info.json", "w"))
 
 
@@ -144,7 +144,7 @@ def filter_image(img_src, img_url_md5, detail_link):
         print('download image fail', img_src, detail_link)
         os.close(tmp_file)
         os.remove(tmp_image)
-        return None 
+        return None
 
     # here call the person detection API
     print("call person detection API")
@@ -164,7 +164,7 @@ def filter_image(img_src, img_url_md5, detail_link):
         if len(person_boxes) == 0:
             os.close(tmp_file)
             os.remove(tmp_image)
-            return None 
+            return None
         each_result["num_of_person"] = len(person_boxes)
 
     # here call the face detection API
@@ -212,7 +212,7 @@ def filter_image(img_src, img_url_md5, detail_link):
     return each_result
 
 
-def handle_detail_page(detail_driver, location_driver, detail_url_md5, detail_link, page_source_ori=None):
+def handle_detail_page(proxy, chrome_options,detail_driver, location_driver, detail_url_md5, detail_link, page_source_ori=None):
     detail_res = {}
 
     # here to download the detail html page
@@ -237,7 +237,7 @@ def handle_detail_page(detail_driver, location_driver, detail_url_md5, detail_li
 
     # upload the html page
     upload_html(detail_url_md5, page_source.encode('utf-8'))
-    detail_res['detail_link_md5'] = detail_url_md5 
+    detail_res['detail_link_md5'] = detail_url_md5
 
     # parse the html page
     parse_res = parse_one_page(page_source)
@@ -308,7 +308,7 @@ def handle_detail_page(detail_driver, location_driver, detail_url_md5, detail_li
     return detail_res, detail_driver, location_driver
 
 
-def get_multi_images(detail_driver, detail_url_md5, detail_link):
+def get_multi_images(proxy, chrome_options, detail_driver, detail_url_md5, detail_link):
     multi_img_res = []
 
     try:
@@ -362,7 +362,7 @@ def get_multi_images(detail_driver, detail_url_md5, detail_link):
         time.sleep(random.randint(1, 3))
 
     return multi_img_res, detail_driver, detail_driver.page_source
-    
+
 
 def main():
     paras = get_cmd()
@@ -428,7 +428,7 @@ def main():
             #    browse_driver.execute_script("window.scrollTo(0, document.body.scrollHeight - 1200);")
             #    continue
             #else:
-            #    retry = 0 
+            #    retry = 0
             last_height = new_height
 
             # parse the html and get all the images
@@ -444,7 +444,7 @@ def main():
                 result['img_src'] = img.get_attribute('src')
                 result['detail_link'] = img.find_element_by_xpath('./ancestor::a').get_attribute('href')
                 print("original detail link is: ", result['detail_link'])
-                 
+
                 m = hashlib.md5()
                 m.update(result['img_src'])
                 img_url_md5 = m.hexdigest()
@@ -470,7 +470,7 @@ def main():
                             post_type = img.find_element_by_xpath('./ancestor::a/div[@class="u7YqG"]')
                             post_type = post_type.find_element_by_xpath('./span').get_attribute('aria-label')
                             result['post_type'] = post_type
-                        except selenium.common.exceptions.NoSuchElementException as e: 
+                        except selenium.common.exceptions.NoSuchElementException as e:
                             print("cannot detect post_type")
                         print("post_type: %s" %(result['post_type']))
 
@@ -487,20 +487,20 @@ def main():
                             else:
                                 print("single_img_res is None")
                                 continue
-                            detail_res, detail_driver, location_driver = handle_detail_page(detail_driver, location_driver, detail_url_md5, result['detail_link'])
+                            detail_res, detail_driver, location_driver = handle_detail_page(proxy,chrome_options,detail_driver, location_driver, detail_url_md5, result['detail_link'])
                             add_detail_html_to_redis(detail_url_md5, result['detail_link'])
                             for k, v in detail_res.items():
                                 result[k] = v
                         elif result['post_type'] == u'轮播':
-                            multi_img_res, detail_driver, page_source = get_multi_images(detail_driver, detail_url_md5, result['detail_link'])
+                            multi_img_res, detail_driver, page_source = get_multi_images(proxy, chrome_options, detail_driver, detail_url_md5, result['detail_link'])
                             add_detail_html_to_redis(detail_url_md5, result['detail_link'])
                             if len(multi_img_res) > 0:
                                 result["multi_imgs"] = multi_img_res
-                                detail_res, detail_driver, location_driver = handle_detail_page(detail_driver, location_driver, detail_url_md5, result['detail_link'], page_source_ori=page_source)
+                                detail_res, detail_driver, location_driver = handle_detail_page(proxy,chrome_options,detail_driver, location_driver, detail_url_md5, result['detail_link'], page_source_ori=page_source)
                                 for k, v in detail_res.items():
                                     result[k] = v
                             else:
-                                continue 
+                                continue
                         else:
                             print("match none of the options")
 
