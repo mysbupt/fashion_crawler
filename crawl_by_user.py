@@ -39,7 +39,6 @@ r = redis.StrictRedis(host=config["redis"]["host"], port=config["redis"]["port"]
 
 def get_cmd():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-u", "--user_name", default=None, help="which user to crawl, instagram user id")
     parser.add_argument("-f", "--file", default=None, help="which file of users to crawl")
     parser.add_argument("-k", "--key", default=None, help="which key in the specific file to crawl")
     parser.add_argument("-s", "--start", default=0, type=int, help="which line to start")
@@ -367,19 +366,24 @@ def get_multi_images(proxy, chrome_options, detail_driver, detail_url_md5, detai
 def main():
     paras = get_cmd()
     proxy = paras.proxy
-    user_name = paras.user_name
 
     user_names = []
-    if user_name is not None:
-        user_names = [user_name]
-    else:
-        all_data = json.load(open(paras.file))
-        all_users = all_data[paras.key]
-        start = int(paras.start)
-        end = int(paras.end)
-        user_names = sorted(all_users)[start:end]
+    all_data = json.load(open(paras.file))
+    all_users = all_data[paras.key]
+    start = int(paras.start)
+    end = int(paras.end)
+    user_names = sorted(all_users)[start:end]
+
+    crawled_user_file = "./data_users/crawled_%d_%d.txt" %(start, end)
+    crawled_users = set()
+    if os.path.exists(crawled_user_file):
+        for line in open(crawled_user_file):
+            crawled_users.add(line.strip())
+    crawled_user_output = open(crawled_user_file, "a")
 
     for i, user_name in enumerate(user_names):
+        if user_name in crawled_users:
+            continue
         url = "https://www.instagram.com/" + user_name + "/"
 
         # chrome for crawling image list and detail page by tagname
@@ -423,6 +427,8 @@ def main():
             # if the scroll reach the end, sroll up a little to mock the website
             if new_height == last_height:
                 finish_flag = True
+                crawled_users.add(user_name)
+                crawled_user_output.write(user_name + "\n")
                 continue
             #    time.sleep(random.randint(3, 5))
             #    browse_driver.execute_script("window.scrollTo(0, document.body.scrollHeight - 1200);")
