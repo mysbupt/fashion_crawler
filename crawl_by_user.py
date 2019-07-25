@@ -342,6 +342,8 @@ def get_multi_images(proxy, chrome_options, detail_driver, detail_url_md5, detai
             #exit()
         per_img = per_img_div.find_element_by_xpath('//div/div/div/img')
         per_img_src = per_img.get_attribute('src')
+        if per_img_src is None or per_img_src == "":
+            continue
         per_img_alt = per_img.get_attribute('alt')
         if not per_img_alt:
             per_img_alt = ""
