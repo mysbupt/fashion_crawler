@@ -21,6 +21,7 @@ import sys
 sys.path.insert(0, "./lib")
 from parse_insta_detail_page import parse_one_page
 from align_body_face_bbox import align_body_face
+import datetime
 
 import reverse_geocoder as rg
 
@@ -167,8 +168,9 @@ def filter_image(img_src, img_url_md5, detail_link):
         each_result["num_of_person"] = len(person_boxes)
 
     # here call the face detection API
-    print("call face detection API")
+    print(datetime.datetime.now(), "call face detection API")
     face_result = requests.post(FACE_DETECT_API, files={'image': (img_url_md5, open(tmp_image).read())}).json()
+    print(datetime.datetime.now(), "get the face detection results")
     each_result["face_result"] = face_result
     face_boxes = []
     if face_result["T_F"] is not True:
@@ -221,13 +223,14 @@ def handle_detail_page(proxy, chrome_options,detail_driver, location_driver, det
             detail_driver.get(detail_link)
             page_source = detail_driver.page_source
         except:
-            detail_driver.close()
-            time.sleep(random.randint(1,3))
+            detail_driver.quit()
+            time.sleep(random.randint(1, 2))
             if proxy != "no":
                 detail_driver = webdriver.Chrome(chrome_options=chrome_options)
             else:
                 detail_driver = webdriver.Chrome()
             detail_driver.set_page_load_timeout(10)
+            time.sleep(random.randint(1,2))
             print("detail_driver error and restart")
             detail_driver.get(detail_link)
             page_source = detail_driver.page_source
@@ -315,7 +318,7 @@ def get_multi_images(proxy, chrome_options, detail_driver, detail_url_md5, detai
         detail_driver.get(detail_link)
     except:
         detail_driver.close()
-        time.sleep(random.randint(1,3))
+        time.sleep(random.randint(1,2))
         if proxy != "no":
             detail_driver = webdriver.Chrome(chrome_options=chrome_options)
         else:
@@ -358,7 +361,7 @@ def get_multi_images(proxy, chrome_options, detail_driver, detail_url_md5, detai
             break
 
         next_img_button.click()
-        time.sleep(random.randint(1, 3))
+        time.sleep(random.randint(1, 2))
 
     return multi_img_res, detail_driver, detail_driver.page_source
 
@@ -402,7 +405,12 @@ def main():
         location_driver.set_page_load_timeout(10)
 
         # get image list page
-        browse_driver.get(url)
+        try:
+            browse_driver.get(url)
+        except:
+            time.sleep(random.randint(1, 2))
+            browse_driver.get(url)
+
         time.sleep(2)
         browse_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         time.sleep(2)
