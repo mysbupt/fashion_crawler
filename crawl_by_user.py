@@ -353,10 +353,9 @@ def get_multi_images(proxy, chrome_options, detail_driver, detail_url_md5, detai
         per_img_url_md5 = m.hexdigest()
 
         each_img_res = filter_image(per_img_src, per_img_url_md5, detail_link)
-        each_img_res["img_src"] = per_img_src
         if each_img_res is not None:
+            each_img_res["img_src"] = per_img_src
             multi_img_res.append(each_img_res)
-
         try:
             next_img_button = per_img_div.find_element_by_xpath('./button[@class="  _6CZji"]')
         except selenium.common.exceptions.NoSuchElementException as e:
