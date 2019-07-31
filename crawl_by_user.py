@@ -412,6 +412,12 @@ def main():
             browse_driver.get(url)
         except:
             time.sleep(random.randint(1, 2))
+            browse_driver.quit()
+            if proxy != "no":
+                browse_driver = webdriver.Chrome(chrome_options=chrome_options)
+            else:
+                browse_driver = webdriver.Chrome()
+            browse_driver.set_page_load_timeout(10)
             browse_driver.get(url)
 
         time.sleep(2)
